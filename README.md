@@ -1,73 +1,75 @@
-# React + TypeScript + Vite
+# 🇬🇧 UK Emissions Map
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive, responsive mapping application designed to help UK drivers navigate Clean Air Zones (CAZ), Low Emission Zones (LEZ), Ultra Low Emission Zones (ULEZ), and Zero Emission Zones (ZEZ).
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+  * **Live Vehicle Compliance:** Enter a UK registration number to instantly check if a vehicle is compliant with any specific zone.
+  * **Dynamic UI:** Custom-styled UK number plate input with real-time feedback.
+  * **Intelligent Filtering:** Toggle "Hide Non-Compliant Zones" to see exactly where you can drive for free.
+  * **Responsive Design:** Optimized for mobile (iPhone 15 tested) with a centered, expandable dock and desktop-side toolbar.
+  * **Interactive Mapbox Integration:** High-performance rendering of GeoJSON zone boundaries with alphabetical sorting and smart layer stacking.
+  * **Secure API Handling:** DVLA API lookups are handled via Firebase Gen 2 Cloud Functions to keep API keys hidden and prevent CORS issues.
 
-## React Compiler
+## 🛠 Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+  * **Frontend:** React, TypeScript, Vite
+  * **Mapping:** `react-map-gl` (Mapbox)
+  * **Styling:** Tailwind CSS, Headless UI, Heroicons
+  * **Backend:** Firebase Functions (Gen 2 / Node.js)
+  * **Data:** DVLA Vehicle Enquiry Service API
+  * **Hosting:** Firebase Hosting
 
-## Expanding the ESLint configuration
+## 📦 Installation & Setup
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 1\. Clone the repository
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+git clone https://github.com/your-username/uk-emissions-map.git
+cd uk-emissions-map
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2\. Frontend Setup
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Install dependencies and create a `.env` file for your Mapbox token.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+echo "VITE_MAPBOX_TOKEN=your_mapbox_public_token" > .env
 ```
+
+### 3\. Firebase Functions Setup
+
+Navigate to the functions directory, install dependencies, and set your DVLA secret.
+
+```bash
+cd functions
+npm install
+firebase functions:secrets:set DVLA_API_KEY # Enter your DVLA API Key when prompted
+```
+
+### 4\. Deploy
+
+```bash
+firebase deploy
+```
+
+## 📂 Project Structure
+
+  * `/src`: React components and application logic.
+      * `App.tsx`: The main map controller and compliance logic.
+      * `firebase.ts`: Firebase SDK initialization.
+  * `/functions`: Node.js Firebase Gen 2 logic for secure DVLA API calls.
+  * `/public/data`: GeoJSON boundary files and `zones.json` configuration.
+
+## 🚦 Compliance Logic
+
+The app derives compliance based on the following UK standards:
+
+  * **Euro 4/6 (ULEZ/CAZ):** Generally Petrol vehicles registered after 2006 and Diesel vehicles after September 2015.
+  * **Congestion/ZEZ:** Strictly limited to 100% Zero-Emission (Electric) vehicles.
+  * **Exempt Zones:** Logic to handle Class B/C zones where private cars are exempt regardless of emissions.
+
+## 🛡 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
