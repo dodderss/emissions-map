@@ -10,7 +10,9 @@ const App = () => {
   const [zones, setZones] = useState<Zone[]>([]);
   const mapRef = useRef<MapRef>(null);
   const [vehicle, setVehicle] = useState<VehicleDetails | null>(null);
-  const [showEligibleOnly, setShowEligibleOnly] = useState(false);
+  const [filterMode, setFilterMode] = useState<
+    "all" | "compliant" | "non-compliant"
+  >("all");
   const [popupData, setPopupData] = useState<any>(null);
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
@@ -47,11 +49,17 @@ const App = () => {
   // VISIBLE ZONES
   const visibleZones = useMemo(() => {
     let filtered = [...zones];
-    if (showEligibleOnly && vehicle) {
-      filtered = filtered.filter((zone) => checkCompliance(vehicle, zone));
+
+    if (vehicle) {
+      if (filterMode === "compliant") {
+        filtered = filtered.filter((zone) => checkCompliance(vehicle, zone));
+      } else if (filterMode === "non-compliant") {
+        filtered = filtered.filter((zone) => !checkCompliance(vehicle, zone));
+      }
     }
+
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [zones, showEligibleOnly, vehicle, checkCompliance]);
+  }, [zones, filterMode, vehicle, checkCompliance]);
 
   return (
     <div className="w-full h-screen relative font-sans bg-gray-50 text-slate-900 overflow-hidden">
@@ -123,14 +131,14 @@ const App = () => {
       <ZoneToolbar
         zones={visibleZones}
         vehicle={vehicle}
-        showEligibleOnly={showEligibleOnly}
+        filterMode={filterMode}
         hoveredZoneId={hoveredZoneId}
         onVehicleCheck={setVehicle}
         onClearVehicle={() => {
           setVehicle(null);
-          setShowEligibleOnly(false);
+          setFilterMode("all");
         }}
-        onToggleEligible={setShowEligibleOnly}
+        onFilterChange={setFilterMode}
         onHoverZone={setHoveredZoneId}
         checkCompliance={checkCompliance}
         onZoneClick={(z) =>
