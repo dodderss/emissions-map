@@ -5,21 +5,26 @@ import {
   XCircleIcon,
   XMarkIcon,
   TicketIcon,
+  MapIcon,
+  TruckIcon,
 } from "@heroicons/react/24/solid";
-import { type Zone, type VehicleDetails } from "../types"; // Adjust path as needed
+import { type Zone, type VehicleDetails } from "../types";
 import { NumberPlateInput } from "./NumberPlateInput";
+import { RouteChecker } from "./RouteChecker";
+// import { NativeAd } from "./NativeAd";
 
 interface ZoneToolbarProps {
   zones: Zone[];
   vehicle: VehicleDetails | null;
-  filterMode: "all" | "compliant" | "non-compliant"; // Changed from boolean
+  filterMode: "all" | "compliant" | "non-compliant";
   hoveredZoneId: string | null;
-  onFilterChange: (mode: "all" | "compliant" | "non-compliant") => void;
   onVehicleCheck: (v: VehicleDetails | null) => void;
   onClearVehicle: () => void;
+  onFilterChange: (mode: "all" | "compliant" | "non-compliant") => void;
   onZoneClick: (zone: Zone) => void;
   onHoverZone: (id: string | null) => void;
   checkCompliance: (v: VehicleDetails, z: Zone) => boolean;
+  onRouteFound: (geoJson: any) => void;
 }
 
 export const ZoneToolbar = ({
@@ -33,28 +38,27 @@ export const ZoneToolbar = ({
   onZoneClick,
   onHoverZone,
   checkCompliance,
+  onRouteFound,
 }: ZoneToolbarProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<"map" | "route">("map"); // NEW: Tab State
 
   return (
     <div
       className={`
         absolute z-10 transition-all duration-300 ease-in-out
-        /* Mobile: Centered at top */
         top-4 left-1/2 -translate-x-1/2 w-[94%] max-w-sm
-        /* Desktop: Top-left */
         md:left-4 md:translate-x-0 md:w-80
         bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20
         max-h-[85vh] flex flex-col
       `}
     >
-      {/* 1. Header & Plate Input */}
       <div className="p-4">
+        {/* Header with Mobile Toggle */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-black tracking-tight flex items-center gap-2">
             <span className="text-xl">🇬🇧</span> Emissions Map
           </h1>
-
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="md:hidden p-2 hover:bg-slate-100 rounded-full transition-colors"
@@ -65,6 +69,7 @@ export const ZoneToolbar = ({
           </button>
         </div>
 
+        {/* Global Reg Input */}
         <NumberPlateInput
           key={vehicle ? vehicle.registration : "empty"}
           onVehicleCheck={(v) => {
@@ -73,6 +78,7 @@ export const ZoneToolbar = ({
           }}
         />
 
+        {/* Vehicle Card */}
         {vehicle && (
           <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center animate-in fade-in slide-in-from-top-2">
             <div className="flex-1 min-w-0 mr-2">
@@ -101,96 +107,132 @@ export const ZoneToolbar = ({
         )}
       </div>
 
-      {/* 2. Expandable Section */}
+      {/* EXPANDABLE AREA */}
       <div
-        className={`
-        overflow-y-auto scrollbar-hide px-4 pb-4
-        ${isExpanded ? "block" : "hidden md:block"}
-      `}
+        className={`overflow-y-auto scrollbar-hide px-4 pb-4 flex-1 ${isExpanded ? "block" : "hidden md:block"}`}
       >
-        {vehicle && (
-          <div className="mb-4">
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">Filter View</div>
-            <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-              <button
-                onClick={() => onFilterChange('all')}
-                className={`py-1.5 text-[10px] font-black rounded-lg transition-all uppercase tracking-tight ${filterMode === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => onFilterChange('compliant')}
-                className={`py-1.5 text-[10px] font-black rounded-lg transition-all uppercase tracking-tight flex items-center justify-center gap-1 ${filterMode === 'compliant' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                <CheckCircleIcon className="w-3 h-3" />
-                Free
-              </button>
-              <button
-                onClick={() => onFilterChange('non-compliant')}
-                className={`py-1.5 text-[10px] font-black rounded-lg transition-all uppercase tracking-tight flex items-center justify-center gap-1 ${filterMode === 'non-compliant' ? 'bg-rose-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                <TicketIcon className="w-3 h-3" />
-                Charge
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-1 mt-2">
-          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
-            Available Zones
-          </div>
-          {zones.map((zone) => {
-            let StatusIcon = null;
-            let compliant = false;
-            if (vehicle) {
-              const isCompliant = checkCompliance(vehicle, zone);
-              compliant = isCompliant;
-              StatusIcon = isCompliant ? (
-                <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
-              ) : (
-                <XCircleIcon className="w-5 h-5 text-rose-500" />
-              );
-            }
-            return (
-              <button
-                key={zone.id}
-                onMouseEnter={() => onHoverZone(zone.id)}
-                onMouseLeave={() => onHoverZone(null)}
-                className={`flex items-center gap-3 w-full p-2.5 rounded-xl transition-all text-left border border-transparent ${
-                  hoveredZoneId === zone.id
-                    ? "bg-slate-100/50"
-                    : "hover:bg-slate-50"
-                }`}
-                onClick={() => {
-                  onZoneClick(zone);
-                  if (window.innerWidth < 768) setIsExpanded(false);
-                }}
-              >
-                {StatusIcon ? (
-                  StatusIcon
-                ) : (
-                  <span
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: zone.color }}
-                  ></span>
-                )}
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-bold text-slate-700 truncate">
-                    {zone.name}
-                  </span>
-                  {compliant ? (
-                    <></>
-                  ) : (
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">
-                      {zone.price}
-                    </span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
+        {/* 1. NEW: TAB SWITCHER */}
+        <div className="flex p-1 bg-slate-100 rounded-xl mb-4">
+          <button
+            onClick={() => setActiveTab("map")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-black transition-all ${
+              activeTab === "map"
+                ? "bg-white shadow-sm text-slate-900"
+                : "text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            <MapIcon className="w-4 h-4" />
+            All Zones
+          </button>
+          <button
+            onClick={() => setActiveTab("route")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-black transition-all ${
+              activeTab === "route"
+                ? "bg-white shadow-sm text-slate-900"
+                : "text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            <TruckIcon className="w-4 h-4" />
+            Route
+          </button>
         </div>
+
+        {/* 2. TAB CONTENT */}
+        {activeTab === "map" ? (
+          // --- EXISTING MAP LIST VIEW ---
+          <>
+            {vehicle && (
+              <div className="mb-4">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
+                  Filter View
+                </div>
+                <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button
+                    onClick={() => onFilterChange("all")}
+                    className={`py-1.5 text-[10px] font-black rounded-lg transition-all uppercase tracking-tight ${filterMode === "all" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => onFilterChange("compliant")}
+                    className={`py-1.5 text-[10px] font-black rounded-lg transition-all uppercase tracking-tight flex items-center justify-center gap-1 ${filterMode === "compliant" ? "bg-emerald-500 text-white shadow-md" : "text-slate-500 hover:text-slate-700"}`}
+                  >
+                    <CheckCircleIcon className="w-3 h-3" />
+                    Free
+                  </button>
+                  <button
+                    onClick={() => onFilterChange("non-compliant")}
+                    className={`py-1.5 text-[10px] font-black rounded-lg transition-all uppercase tracking-tight flex items-center justify-center gap-1 ${filterMode === "non-compliant" ? "bg-rose-500 text-white shadow-md" : "text-slate-500 hover:text-slate-700"}`}
+                  >
+                    <TicketIcon className="w-3 h-3" />
+                    Charge
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* {hasComplianceIssues && (
+              <NativeAd vehicleName={vehicle?.make || "Car"} />
+            )} */}
+
+            <div className="space-y-1 mt-2">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
+                Available Zones
+              </div>
+              {zones.map((zone) => {
+                let StatusIcon = null;
+                if (vehicle) {
+                  const isCompliant = checkCompliance(vehicle, zone);
+                  StatusIcon = isCompliant ? (
+                    <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
+                  ) : (
+                    <XCircleIcon className="w-5 h-5 text-rose-500" />
+                  );
+                }
+                return (
+                  <button
+                    key={zone.id}
+                    onMouseEnter={() => onHoverZone(zone.id)}
+                    onMouseLeave={() => onHoverZone(null)}
+                    className={`flex items-center gap-3 w-full p-2.5 rounded-xl transition-all text-left border border-transparent ${
+                      hoveredZoneId === zone.id
+                        ? "bg-slate-100/50"
+                        : "hover:bg-slate-50"
+                    }`}
+                    onClick={() => {
+                      onZoneClick(zone);
+                      if (window.innerWidth < 768) setIsExpanded(false);
+                    }}
+                  >
+                    {StatusIcon ? (
+                      StatusIcon
+                    ) : (
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: zone.color }}
+                      ></span>
+                    )}
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-slate-700 truncate">
+                        {zone.name}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">
+                        {zone.price}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <RouteChecker
+            zones={zones}
+            vehicle={vehicle}
+            onRouteFound={onRouteFound}
+            checkCompliance={checkCompliance}
+          />
+        )}
       </div>
     </div>
   );

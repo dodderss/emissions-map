@@ -10,9 +10,9 @@ import {
 import { type MapRef } from "react-map-gl/mapbox";
 import { ZoneToolbar } from "./components/ZoneToolbar";
 import { type Zone, type VehicleDetails } from "./types";
+import bbox from "@turf/bbox"; // Optional: To zoom to route
 
 // 1. DYNAMIC IMPORT
-// This tells Vite: "Don't load MapContainer.js until we actually render it"
 const MapContainer = lazy(() => import("./components/MapContainer"));
 
 const App = () => {
@@ -24,6 +24,9 @@ const App = () => {
     "all" | "compliant" | "non-compliant"
   >("all");
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
+  
+  // NEW: State to hold the calculated route line
+  const [routeGeoJSON, setRouteGeoJSON] = useState<any>(null);
 
   useEffect(() => {
     fetch("/data/zones.json")
@@ -61,12 +64,28 @@ const App = () => {
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }, [zones, filterMode, vehicle, checkCompliance]);
 
-  
+  // NEW: Handler for when a route is found
+  const handleRouteFound = (geoJson: any) => {
+    setRouteGeoJSON(geoJson);
+
+    // Optional: Fly the map to fit the new route
+    if (geoJson && mapRef.current) {
+      // Calculate bounding box of the route to zoom nicely
+      // You might need to install @turf/bbox: npm install @turf/bbox
+       try {
+         const [minLng, minLat, maxLng, maxLat] = bbox(geoJson);
+         mapRef.current.fitBounds(
+           [[minLng, minLat], [maxLng, maxLat]],
+           { padding: 50, duration: 1000 }
+         );
+       } catch (e) {
+         console.log("Could not fit bounds", e);
+       }
+    }
+  };
 
   return (
     <div className="w-full h-screen relative font-sans bg-gray-50 text-slate-900 overflow-hidden">
-      {/* 2. LOADING STATE */}
-      {/* This shows while the Map chunk is downloading */}
       <Suspense
         fallback={
           <div className="w-full h-full flex items-center justify-center bg-slate-100">
@@ -86,6 +105,8 @@ const App = () => {
           checkCompliance={checkCompliance}
           onHoverZone={setHoveredZoneId}
           hoveredZoneId={hoveredZoneId}
+          // PASS THE ROUTE DATA DOWN
+          routeGeoJSON={routeGeoJSON}
         />
       </Suspense>
 
@@ -98,6 +119,7 @@ const App = () => {
         onClearVehicle={() => {
           setVehicle(null);
           setFilterMode("all");
+          setRouteGeoJSON(null); // Clear route when clearing vehicle
         }}
         onFilterChange={setFilterMode}
         onHoverZone={setHoveredZoneId}
@@ -109,6 +131,8 @@ const App = () => {
             essential: true,
           })
         }
+        // PASS THE HANDLER DOWN
+        onRouteFound={handleRouteFound}
       />
     </div>
   );

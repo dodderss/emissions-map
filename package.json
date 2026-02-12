@@ -13,6 +13,7 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@tailwindcss/vite": "^4.1.18",
+    "@turf/turf": "^7.3.4",
     "firebase": "^12.9.0",
     "heroicons": "^2.2.0",
     "mapbox-gl": "^3.18.1",
