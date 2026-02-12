@@ -4,6 +4,7 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   MapPinIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/24/solid";
 import * as turf from "@turf/turf";
 import { type Zone, type VehicleDetails } from "../types";
@@ -13,6 +14,11 @@ interface RouteCheckerProps {
   vehicle: VehicleDetails | null;
   onRouteFound: (routeGeoJSON: any) => void;
   checkCompliance: (v: VehicleDetails, z: Zone) => boolean;
+  // NEW PROPS FOR STATE LIFTING
+  origin: string;
+  setOrigin: (val: string) => void;
+  destination: string;
+  setDestination: (val: string) => void;
 }
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -128,38 +134,39 @@ const LocationAutocomplete = ({
 };
 
 // --- Main Route Checker Component ---
-export const RouteChecker = ({
-  zones,
-  vehicle,
-  onRouteFound,
+export const RouteChecker = ({ 
+  zones, 
+  vehicle, 
+  onRouteFound, 
   checkCompliance,
+  origin,
+  setOrigin,
+  destination,
+  setDestination
 }: RouteCheckerProps) => {
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
   const [loading, setLoading] = useState(false);
   const [intersects, setIntersects] = useState<Zone[]>([]);
   const [routeData, setRouteData] = useState<any>(null);
 
-  // Helper: Geocode an address to [lng, lat]
+  // Helper: Geocode
   const geocode = async (query: string) => {
     const res = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&limit=1`,
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&limit=1`
     );
     const data = await res.json();
-    return data.features?.[0]?.center; // [lng, lat]
+    return data.features?.[0]?.center;
   };
 
   const handleCheckRoute = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!origin || !destination) return;
-
+    
     setLoading(true);
     setIntersects([]);
     setRouteData(null);
-    onRouteFound(null); // Clear map
+    onRouteFound(null);
 
     try {
-      // 1. Get Coordinates
       const startCoords = await geocode(origin);
       const endCoords = await geocode(destination);
 
@@ -169,9 +176,8 @@ export const RouteChecker = ({
         return;
       }
 
-      // 2. Get Route from Mapbox Directions API
       const dirRes = await fetch(
-        `https://api.mapbox.com/directions/v5/mapbox/driving/${startCoords.join(",")};${endCoords.join(",")}?geometries=geojson&access_token=${MAPBOX_TOKEN}`,
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${startCoords.join(",")};${endCoords.join(",")}?geometries=geojson&access_token=${MAPBOX_TOKEN}`
       );
       const dirData = await dirRes.json();
       const route = dirData.routes?.[0];
@@ -182,32 +188,22 @@ export const RouteChecker = ({
         return;
       }
 
-      // 3. Analyze Route against Zones using Turf.js
       const routeLine = turf.lineString(route.geometry.coordinates);
-
+      
       const checkPromises = zones.map(async (zone) => {
         try {
-          const res = await fetch(zone.url);
-          const geoJson = await res.json();
-
-          let hits = false;
-          // Handle both Polygon and MultiPolygon
-          turf.featureEach(geoJson, (feature) => {
-            if (
-              !hits &&
-              (feature.geometry.type === "Polygon" ||
-                feature.geometry.type === "MultiPolygon")
-            ) {
-              // @ts-ignore
-              if (turf.booleanIntersects(routeLine, feature)) {
-                hits = true;
-              }
-            }
-          });
-
-          if (hits) return zone;
+            const res = await fetch(zone.url);
+            const geoJson = await res.json();
+            let hits = false;
+            turf.featureEach(geoJson, (feature) => {
+                if (!hits && (feature.geometry.type === "Polygon" || feature.geometry.type === "MultiPolygon")) {
+                    // @ts-ignore
+                    if (turf.booleanIntersects(routeLine, feature)) hits = true;
+                }
+            });
+            if (hits) return zone;
         } catch (err) {
-          console.error("Failed to check zone", zone.name);
+            console.error("Failed to check zone", zone.name);
         }
         return null;
       });
@@ -217,16 +213,16 @@ export const RouteChecker = ({
 
       setIntersects(validHits);
       setRouteData({
-        duration: Math.round(route.duration / 60), // mins
-        distance: (route.distance / 1609.34).toFixed(1), // miles
+        duration: Math.round(route.duration / 60),
+        distance: (route.distance / 1609.34).toFixed(1)
       });
 
-      // 4. Send Route to Map
       onRouteFound({
         type: "Feature",
         properties: {},
-        geometry: route.geometry,
+        geometry: route.geometry
       });
+
     } catch (err) {
       console.error(err);
       alert("Error calculating route");
@@ -235,41 +231,47 @@ export const RouteChecker = ({
     }
   };
 
+  // --- NEW: Helper for description text ---
+  const getActionDescription = (zone: Zone, isCompliant: boolean | null) => {
+    if (isCompliant === null) return "Enter your registration to check compliance.";
+    
+    if (isCompliant) {
+        return "Allowed. Your vehicle meets the emission standards for this zone.";
+    }
+    
+    // Check if it's a "Ban" type (usually indicated by 'Fine' in price)
+    if (zone.price.toLowerCase().includes("fine")) {
+        return "Strict Ban. Non-compliant vehicles cannot enter (Penalty applies).";
+    }
+
+    return `Charge Applies. You must pay the daily charge of ${zone.price}.`;
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <form onSubmit={handleCheckRoute} className="space-y-3 mb-6">
-        {/* New Autocomplete Inputs */}
-        <LocationAutocomplete
+        <LocationAutocomplete 
           label="Start"
-          placeholder="Start Location (e.g. Manchester)"
+          placeholder="Start Location"
           value={origin}
           onChange={setOrigin}
         />
-
-        <LocationAutocomplete
+        <LocationAutocomplete 
           label="End"
-          placeholder="Destination (e.g. London)"
+          placeholder="Destination"
           value={destination}
           onChange={setDestination}
           icon={<MapPinIcon className="w-3 h-3 text-rose-500" />}
         />
-
         <button
           type="submit"
           disabled={loading}
           className="w-full bg-slate-900 text-white font-black text-xs uppercase tracking-widest py-3 rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200"
         >
-          {loading ? (
-            "Calculating..."
-          ) : (
-            <>
-              <ArrowRightIcon className="w-4 h-4" /> Check Route
-            </>
-          )}
+          {loading ? "Calculating..." : <><ArrowRightIcon className="w-4 h-4" /> Check Route</>}
         </button>
       </form>
 
-      {/* RESULTS AREA */}
       {routeData && (
         <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
           <div className="flex justify-between items-center mb-4 text-xs font-bold text-slate-500 border-b border-slate-200 pb-2">
@@ -281,9 +283,7 @@ export const RouteChecker = ({
             <div className="flex flex-col items-center py-4 text-center">
               <CheckCircleIcon className="w-10 h-10 text-emerald-500 mb-2" />
               <h3 className="font-black text-slate-900">Clear Route!</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                This route does not pass through any known zones.
-              </p>
+              <p className="text-xs text-slate-500 mt-1">This route does not pass through any known zones.</p>
             </div>
           ) : (
             <div>
@@ -291,32 +291,30 @@ export const RouteChecker = ({
                 <ExclamationTriangleIcon className="w-4 h-4" />
                 Zones on Route
               </div>
-              <div className="space-y-2">
-                {intersects.map((zone) => {
-                  const isCompliant = vehicle
-                    ? checkCompliance(vehicle, zone)
-                    : false;
+              <div className="space-y-3">
+                {intersects.map(zone => {
+                  const isCompliant = vehicle ? checkCompliance(vehicle, zone) : null;
+                  const description = getActionDescription(zone, isCompliant);
+
                   return (
-                    <div
-                      key={zone.id}
-                      className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center"
-                    >
-                      <div>
-                        <div className="text-xs font-bold text-slate-800">
-                          {zone.name}
+                    <div key={zone.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-slate-300">
+                      {/* Top Row: Name and Price */}
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="text-xs font-bold text-slate-800">{zone.name}</div>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase">{zone.type}</div>
                         </div>
-                        <div className="text-[10px] text-slate-400 font-bold uppercase">
-                          {zone.type}
+                        <div className={`text-[10px] font-black px-2 py-1 rounded ${isCompliant ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                           {vehicle ? (isCompliant ? 'FREE' : zone.price) : zone.price}
                         </div>
                       </div>
-                      <div
-                        className={`text-[10px] font-black px-2 py-1 rounded ${isCompliant ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}
-                      >
-                        {vehicle
-                          ? isCompliant
-                            ? "OK"
-                            : zone.price
-                          : zone.price}
+
+                      {/* Bottom Row: Action Description */}
+                      <div className="flex gap-2 items-start pt-2 border-t border-slate-50">
+                        <InformationCircleIcon className={`w-3 h-3 mt-0.5 shrink-0 ${isCompliant ? 'text-emerald-500' : 'text-rose-500'}`} />
+                        <p className="text-[11px] font-medium text-slate-600 leading-tight">
+                          {description}
+                        </p>
                       </div>
                     </div>
                   );

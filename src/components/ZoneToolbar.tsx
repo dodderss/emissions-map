@@ -43,6 +43,9 @@ export const ZoneToolbar = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<"map" | "route">("map"); // NEW: Tab State
 
+  const [routeOrigin, setRouteOrigin] = useState("");
+  const [routeDestination, setRouteDestination] = useState("");
+
   return (
     <div
       className={`
@@ -231,6 +234,10 @@ export const ZoneToolbar = ({
             vehicle={vehicle}
             onRouteFound={onRouteFound}
             checkCompliance={checkCompliance}
+            origin={routeOrigin}
+            setOrigin={setRouteOrigin}
+            destination={routeDestination}
+            setDestination={setRouteDestination}
           />
         )}
       </div>
