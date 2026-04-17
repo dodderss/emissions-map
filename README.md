@@ -1,8 +1,8 @@
-# 🇬🇧 UK Emissions Map
+# UK Emissions Map
 
 An interactive, responsive mapping application designed to help UK drivers navigate Clean Air Zones (CAZ), Low Emission Zones (LEZ), Ultra Low Emission Zones (ULEZ), and Zero Emission Zones (ZEZ).
 
-## 🚀 Features
+## Features
 
   * **Live Vehicle Compliance:** Enter a UK registration number to instantly check if a vehicle is compliant with any specific zone.
   * **Dynamic UI:** Custom-styled UK number plate input with real-time feedback.
@@ -11,7 +11,7 @@ An interactive, responsive mapping application designed to help UK drivers navig
   * **Interactive Mapbox Integration:** High-performance rendering of GeoJSON zone boundaries with alphabetical sorting and smart layer stacking.
   * **Secure API Handling:** DVLA API lookups are handled via Firebase Gen 2 Cloud Functions to keep API keys hidden and prevent CORS issues.
 
-## 🛠 Tech Stack
+## Tech Stack
 
   * **Frontend:** React, TypeScript, Vite
   * **Mapping:** `react-map-gl` (Mapbox)
@@ -20,7 +20,7 @@ An interactive, responsive mapping application designed to help UK drivers navig
   * **Data:** DVLA Vehicle Enquiry Service API
   * **Hosting:** Firebase Hosting
 
-## 📦 Installation & Setup
+## Installation & Setup
 
 ### 1\. Clone the repository
 
@@ -54,7 +54,7 @@ firebase functions:secrets:set DVLA_API_KEY # Enter your DVLA API Key when promp
 firebase deploy
 ```
 
-## 📂 Project Structure
+## Project Structure
 
   * `/src`: React components and application logic.
       * `App.tsx`: The main map controller and compliance logic.
@@ -62,7 +62,7 @@ firebase deploy
   * `/functions`: Node.js Firebase Gen 2 logic for secure DVLA API calls.
   * `/public/data`: GeoJSON boundary files and `zones.json` configuration.
 
-## 🚦 Compliance Logic
+## Compliance Logic
 
 The app derives compliance based on the following UK standards:
 
